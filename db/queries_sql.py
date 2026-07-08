@@ -85,7 +85,7 @@ limit ?;
 UPDATE_ORDER_STATUS = "update orders set status = ? where id = ?;"
 
 # Stats
-SELECT_USERS_COUNT = "select count(*) from users;"
+SELECT_USERS_COUNT = "select count(*) from users where max_user_id not in ({placeholders});"
 SELECT_PRODUCTS_COUNT = "select count(*) from products where is_active = 1;"
 SELECT_ORDERS_COUNT = "select count(*) from orders;"
 

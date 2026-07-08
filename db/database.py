@@ -1,6 +1,7 @@
 import aiosqlite
 import logging
 from db.queries_sql import *
+from config import ADMIN_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +173,10 @@ async def get_last_sync() -> dict:
 async def get_stats() -> dict:
     try:
         async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute(SELECT_USERS_COUNT)
+            admin_ids = ADMIN_IDS if ADMIN_IDS else [0]
+            placeholders = ','.join('?' * len(admin_ids))
+            query = SELECT_USERS_COUNT.format(placeholders=placeholders)
+            cursor = await db.execute(query, admin_ids)
             u = await cursor.fetchone()
             cursor = await db.execute(SELECT_PRODUCTS_COUNT)
             p = await cursor.fetchone()

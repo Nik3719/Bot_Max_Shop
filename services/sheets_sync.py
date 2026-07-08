@@ -21,6 +21,18 @@ def get_creds():
 
 agcm = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
 
+
+async def _get_worksheet(name: str):
+    if not SPREADSHEET_ID:
+        raise ValueError("SPREADSHEET_ID не задан")
+    agc = await agcm.authorize()
+    sh = await agc.open_by_key(SPREADSHEET_ID)
+    try:
+        return await sh.worksheet(name)
+    except Exception:
+        raise ValueError(f"Лист '{name}' не найден")
+
+
 def _parse_row(row: dict, row_num: int) -> dict | None:
     pid = str(row.get('product_id', '')).strip()
     name = str(row.get('name', '')).strip()
@@ -51,6 +63,12 @@ def _is_product_changed(existing: dict, new: dict) -> bool:
     return any(existing.get(f, '') != new.get(f, '') for f in fields)
 
 
+async def _save_product(product: dict):
+    p = product
+    await db.upsert_product(p['product_id'], p['name'], p['description'],
+                            p['price'], p['category'], p['photo_url'])
+
+
 async def _deactivate_missing(db_ids: set, sheet_ids: set) -> int:
     count = 0
     for pid in db_ids - sheet_ids:
@@ -60,16 +78,7 @@ async def _deactivate_missing(db_ids: set, sheet_ids: set) -> int:
 
 
 async def sync_from_sheets(admin_user_id=None) -> dict:
-    if not SPREADSHEET_ID:
-        raise ValueError("SPREADSHEET_ID не задан")
-
-    agc = await agcm.authorize()
-    sh = await agc.open_by_key(SPREADSHEET_ID)
-    try:
-        ws = await sh.worksheet("Товары")
-    except Exception:
-        raise ValueError("Лист 'Товары' не найден")
-
+    ws = await _get_worksheet("Товары")
     rows = await ws.get_all_records()
 
     inserted, updated = 0, 0
@@ -88,12 +97,10 @@ async def sync_from_sheets(admin_user_id=None) -> dict:
         existing = await db.get_product_by_id(pid)
         if existing:
             if _is_product_changed(existing, product):
-                await db.upsert_product(pid, product['name'], product['description'],
-                                        product['price'], product['category'], product['photo_url'])
+                await _save_product(product)
                 updated += 1
         else:
-            await db.upsert_product(pid, product['name'], product['description'],
-                                    product['price'], product['category'], product['photo_url'])
+            await _save_product(product)
             inserted += 1
 
     deactivated = await _deactivate_missing(db_product_ids, sheet_product_ids)
@@ -104,36 +111,23 @@ async def sync_from_sheets(admin_user_id=None) -> dict:
 
     return {"inserted": inserted, "updated": updated, "deactivated": deactivated}
 
+
 async def sync_to_sheets(admin_user_id=None):
-    if not SPREADSHEET_ID:
-        raise ValueError("SPREADSHEET_ID не задан")
-        
-    agc = await agcm.authorize()
-    sh = await agc.open_by_key(SPREADSHEET_ID)
-    try:
-        ws = await sh.worksheet("Заявки")
-    except Exception:
-        raise ValueError("Лист 'Заявки' не найден")
-        
+    ws = await _get_worksheet("Заявки")
+
     orders = await db.get_new_orders()
     if not orders:
         return 0
-        
-    rows_to_append = []
-    for o in orders:
-        rows_to_append.append([
-            o['id'],
-            o['full_name'],
-            o['phone'],
-            o['product_name'],
-            o['price'],
-            o['status'],
-            o['created_at']
-        ])
-        
+
+    rows_to_append = [
+        [o['id'], o['full_name'], o['phone'], o['product_name'],
+         o['price'], o['status'], o['created_at']]
+        for o in orders
+    ]
+
     await ws.append_rows(rows_to_append)
-    
+
     for o in orders:
         await db.update_order_status(o['id'], 'viewed')
-        
+
     return len(orders)
