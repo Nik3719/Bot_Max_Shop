@@ -1,11 +1,19 @@
-.env
-*.pdf
+.venv/
 venv/
-db/bot_users.db
 __pycache__/
-.vscode/
-*.txt
+
+.env
 *.log
-*.docx
-1.md
-*,json
+
+# База данных
+db/*.sqlite
+db/*.db
+db/*.db-journal
+
+# Секретные ключи Google Sheets
+*.json
+!credentials.json.example
+
+# Исключаем лишние системные файлы
+.vscode/
+.DS_Store

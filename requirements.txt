@@ -1,0 +1,7 @@
+maxapi
+aiosqlite
+gspread
+gspread-asyncio
+google-auth
+apscheduler
+python-dotenv
