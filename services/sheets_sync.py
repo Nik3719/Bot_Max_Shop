@@ -21,77 +21,88 @@ def get_creds():
 
 agcm = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
 
+def _parse_row(row: dict, row_num: int) -> dict | None:
+    pid = str(row.get('product_id', '')).strip()
+    name = str(row.get('name', '')).strip()
+    price = row.get('price', 0)
+
+    if not pid or not name or not price:
+        logger.warning(f"Пропущена строка {row_num}: не хватает обязательных полей")
+        return None
+
+    try:
+        price = int(price)
+    except ValueError:
+        logger.warning(f"Пропущена строка {row_num}: цена должна быть числом")
+        return None
+
+    return {
+        'product_id': pid,
+        'name': name,
+        'description': str(row.get('description', '')).strip(),
+        'price': price,
+        'category': str(row.get('category', '')).strip(),
+        'photo_url': str(row.get('photo_url', '')).strip(),
+    }
+
+
+def _is_product_changed(existing: dict, new: dict) -> bool:
+    fields = ('name', 'description', 'price', 'category', 'photo_url')
+    return any(existing.get(f, '') != new.get(f, '') for f in fields)
+
+
+async def _deactivate_missing(db_ids: set, sheet_ids: set) -> int:
+    count = 0
+    for pid in db_ids - sheet_ids:
+        await db.deactivate_product(pid)
+        count += 1
+    return count
+
+
 async def sync_from_sheets(admin_user_id=None) -> dict:
     if not SPREADSHEET_ID:
         raise ValueError("SPREADSHEET_ID не задан")
-    
+
     agc = await agcm.authorize()
     sh = await agc.open_by_key(SPREADSHEET_ID)
     try:
         ws = await sh.worksheet("Товары")
     except Exception:
         raise ValueError("Лист 'Товары' не найден")
-    
+
     rows = await ws.get_all_records()
-    
-    inserted, updated, deactivated = 0, 0, 0
-    
+
+    inserted, updated = 0, 0
     active_products_db = await db.get_active_products()
     db_product_ids = {str(p['product_id']) for p in active_products_db}
     sheet_product_ids = set()
-    
+
     for i, row in enumerate(rows, start=2):
-        pid = str(row.get('product_id', '')).strip()
-        name = str(row.get('name', '')).strip()
-        price = row.get('price', 0)
-        
-        if not pid or not name or not price:
-            logger.warning(f"Пропущена строка {i}: не хватает обязательных полей")
+        product = _parse_row(row, i)
+        if not product:
             continue
-            
-        try:
-            price = int(price)
-        except ValueError:
-            logger.warning(f"Пропущена строка {i}: цена должна быть числом")
-            continue
-            
-        desc = str(row.get('description', '')).strip()
-        cat = str(row.get('category', '')).strip()
-        photo = str(row.get('photo_url', '')).strip()
-        
+
+        pid = product['product_id']
         sheet_product_ids.add(pid)
-        
+
         existing = await db.get_product_by_id(pid)
-        
         if existing:
-            changed = (
-                existing['name'] != name or
-                existing['description'] != desc or
-                existing['price'] != price or
-                existing.get('category', '') != cat or
-                existing.get('photo_url', '') != photo
-            )
-            if changed:
-                await db.upsert_product(pid, name, desc, price, cat, photo)
+            if _is_product_changed(existing, product):
+                await db.upsert_product(pid, product['name'], product['description'],
+                                        product['price'], product['category'], product['photo_url'])
                 updated += 1
         else:
-            await db.upsert_product(pid, name, desc, price, cat, photo)
+            await db.upsert_product(pid, product['name'], product['description'],
+                                    product['price'], product['category'], product['photo_url'])
             inserted += 1
-            
-    for pid in db_product_ids:
-        if pid not in sheet_product_ids:
-            await db.deactivate_product(pid)
-            deactivated += 1
-            
+
+    deactivated = await _deactivate_missing(db_product_ids, sheet_product_ids)
+
     log_id = await db.add_sync_log('success', admin_user_id)
     if log_id:
         await db.update_sync_log(log_id, 'success', inserted, updated, deactivated)
-        
-    return {
-        "inserted": inserted,
-        "updated": updated,
-        "deactivated": deactivated
-    }
+
+    return {"inserted": inserted, "updated": updated, "deactivated": deactivated}
 
 async def sync_to_sheets(admin_user_id=None):
     if not SPREADSHEET_ID:
