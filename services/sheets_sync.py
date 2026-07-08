@@ -38,7 +38,7 @@ def _parse_row(row: dict, row_num: int) -> dict | None:
     name = str(row.get('name', '')).strip()
     price = row.get('price', 0)
 
-    if not pid or not name or not price:
+    if pid == '' or name == '' or price == '':
         logger.warning(f"Пропущена строка {row_num}: не хватает обязательных полей")
         return None
 
@@ -60,7 +60,14 @@ def _parse_row(row: dict, row_num: int) -> dict | None:
 
 def _is_product_changed(existing: dict, new: dict) -> bool:
     fields = ('name', 'description', 'price', 'category', 'photo_url')
-    return any(existing.get(f, '') != new.get(f, '') for f in fields)
+    for f in fields:
+        e_val = existing.get(f)
+        n_val = new.get(f)
+        if e_val is None: e_val = ''
+        if n_val is None: n_val = ''
+        if e_val != n_val:
+            return True
+    return False
 
 
 async def _save_product(product: dict):
