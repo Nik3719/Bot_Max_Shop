@@ -45,4 +45,7 @@ def format_product(p: dict) -> str:
     return f"📱 {p['name']}\n─────────────────────────────\n{p['description']}\n\n💰 {p['price']} ₽\n🏷 {p.get('category', 'Без категории')}"
 
 def format_order_admin(o: dict) -> str:
-    return f"🛒 НОВАЯ ЗАЯВКА #{o['id']}\n──────────────────────────────\n📦 Товар:   {o['product_name']}\n💰 Цена:    {o['price']} ₽\n\n👤 Покупатель: {o['full_name']}\n📞 Телефон:    {o['phone']}\n💬 Комментарий: {o['comment']}\n\n🕐 Время заявки: {o['created_at']}\n──────────────────────────────"
+    cat = o.get('category') or 'Без категории'
+    photo = f"📷 Фото: {o['photo_url']}" if o.get('photo_url') else "📷 Фото недоступно"
+    
+    return f"🛒 НОВАЯ ЗАЯВКА #{o['id']}\n──────────────────────────────\n📦 Товар:   {o['product_name']}\n💰 Цена:    {o['price']} ₽\n🏷 Категория: {cat}\n{photo}\n\n👤 Покупатель: {o['full_name']}\n📞 Телефон:    {o['phone']}\n🆔 MAX ID:     {o['max_user_id']}\n\n💬 Комментарий: {o['comment']}\n\n🕐 Время заявки: {o['created_at']}\n──────────────────────────────"
