@@ -169,7 +169,7 @@ async def process_order_comment(event: MessageCreated, context: MemoryContext):
                             CallbackButton(text="✅ Принять", payload=f"admin_order_accept_{order_id}"),
                             CallbackButton(text="❌ Отклонить", payload=f"admin_order_reject_{order_id}")
                         )
-                        await event.bot.send_message(chat_id=aid, text=admin_text, attachments=[builder.as_markup()])
+                        await event.bot.send_message(user_id=aid, text=admin_text, attachments=[builder.as_markup()])
                     except Exception as e:
                         logger.error(f"Не удалось отправить уведомление админу {aid}: {e}")
         else:

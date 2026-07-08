@@ -74,6 +74,18 @@ join products p on o.product_id = p.product_id
 where o.status = 'new'
 order by o.created_at asc;
 """
+
+SELECT_ALL_ORDERS_PAGINATED = """
+select o.id, u.full_name, u.phone, p.name, p.price, o.status, o.created_at, o.comment
+from orders o
+join users u on o.max_user_id = u.max_user_id
+join products p on o.product_id = p.product_id
+order by o.created_at desc
+limit ? offset ?;
+"""
+
+SELECT_ALL_ORDERS_COUNT = "select count(*) from orders;"
+
 SELECT_USER_ORDERS = """
 select o.id, p.name, p.price, o.status, o.created_at
 from orders o
@@ -82,6 +94,15 @@ where o.max_user_id = ?
 order by o.created_at desc
 limit ?;
 """
+
+SELECT_ORDER_BY_ID = """
+select o.id, u.max_user_id, p.name
+from orders o
+join users u on o.max_user_id = u.max_user_id
+join products p on o.product_id = p.product_id
+where o.id = ?;
+"""
+
 UPDATE_ORDER_STATUS = "update orders set status = ? where id = ?;"
 
 # Stats

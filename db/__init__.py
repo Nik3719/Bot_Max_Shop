@@ -15,5 +15,8 @@ from .database import (
     add_sync_log,
     update_sync_log,
     get_last_sync,
-    get_stats
+    get_stats,
+    get_all_orders,
+    get_all_orders_count,
+    get_order_by_id
 )

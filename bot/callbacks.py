@@ -52,4 +52,17 @@ async def process_callback(event: MessageCallback, context: MemoryContext):
         status = 'accepted' if action == 'accept' else 'rejected'
         await db.update_order_status(order_id, status)
         
+        order_info = await db.get_order_by_id(order_id)
+        if order_info:
+            buyer_id = order_info['max_user_id']
+            p_name = order_info['product_name']
+            if status == 'accepted':
+                msg = f"🎉 Ваша заявка #{order_id} на «{p_name}» принята! С вами свяжутся в ближайшее время."
+            else:
+                msg = f"😔 Заявка #{order_id} на «{p_name}» отклонена. Для уточнения деталей обратитесь к администратору."
+            try:
+                await event.bot.send_message(user_id=buyer_id, text=msg)
+            except Exception as e:
+                logger.error(f"Не удалось отправить ответ пользователю {buyer_id}: {e}")
+                
         await event.bot.send_message(chat_id=chat_id, text=f"Заявка #{order_id} переведена в статус {status}.")

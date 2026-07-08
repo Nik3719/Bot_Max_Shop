@@ -73,3 +73,17 @@ async def cmd_orders(event: MessageCreated, context: MemoryContext):
             CallbackButton(text="❌ Отклонить", payload=f"admin_order_reject_{o['id']}")
         )
         await event.message.answer(text, attachments=[builder.as_markup()])
+
+@admin_router.message_created(Command("orders_all"))
+async def cmd_orders_all(event: MessageCreated, context: MemoryContext):
+    orders = await db.get_all_orders(limit=20)
+    if not orders:
+        await event.message.answer("Заявок нет.")
+        return
+    
+    res = "📋 Последние 20 заявок:\n\n"
+    for o in orders:
+        status_map = {'new': '🕐 Ожидает', 'viewed': '👀 Просмотрена', 'accepted': '✅ Принята', 'rejected': '❌ Отклонена'}
+        res += f"#{o['id']} | {o['product_name']} | {o['price']} ₽ | {status_map.get(o['status'], o['status'])} | {o['created_at']}\n"
+    
+    await event.message.answer(res)

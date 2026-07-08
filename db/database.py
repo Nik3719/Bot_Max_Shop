@@ -138,6 +138,38 @@ async def update_order_status(order_id: int, status: str):
     except Exception as e:
         logger.error(f"Ошибка БД при обновлении статуса заявки {order_id}: {e}")
 
+async def get_order_by_id(order_id: int) -> dict:
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute(SELECT_ORDER_BY_ID, (order_id,))
+            r = await cursor.fetchone()
+            if r:
+                return {'id': r[0], 'max_user_id': r[1], 'product_name': r[2]}
+            return None
+    except Exception as e:
+        logger.error(f"Ошибка БД при получении заявки {order_id}: {e}")
+        return None
+
+async def get_all_orders(limit: int = 20, offset: int = 0) -> list[dict]:
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute(SELECT_ALL_ORDERS_PAGINATED, (limit, offset))
+            rows = await cursor.fetchall()
+            return [{'id': r[0], 'full_name': r[1], 'phone': r[2], 'product_name': r[3], 'price': r[4], 'status': r[5], 'created_at': r[6], 'comment': r[7]} for r in rows]
+    except Exception as e:
+        logger.error(f"Ошибка БД при получении всех заявок: {e}")
+        return []
+
+async def get_all_orders_count() -> int:
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute(SELECT_ALL_ORDERS_COUNT)
+            r = await cursor.fetchone()
+            return r[0] if r else 0
+    except Exception as e:
+        logger.error(f"Ошибка БД при подсчете всех заявок: {e}")
+        return 0
+
 # --- Sync Log ---
 async def add_sync_log(status: str, initiator_id: int = None) -> int:
     try:
