@@ -121,7 +121,7 @@ async def sync_to_sheets(admin_user_id=None):
 
     rows_to_append = [
         [o['id'], o['full_name'], o['phone'], o['product_name'],
-         o['price'], o['status'], o['created_at']]
+         o['price'], o['status'], o['created_at'], o.get('comment', '')]
         for o in orders
     ]
 
