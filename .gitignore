@@ -5,15 +5,14 @@ __pycache__/
 .env
 *.log
 
-# База данных
+
 db/*.sqlite
 db/*.db
 db/*.db-journal
 
-# Секретные ключи Google Sheets
 *.json
 !credentials.json.example
 
-# Исключаем лишние системные файлы
+
 .vscode/
 .DS_Store

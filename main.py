@@ -10,6 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from db import init_db
 from bot.handlers import router as handlers_router
 from bot.callbacks import router as callbacks_router
+from bot.admin import admin_router
 from bot.menu import menu_router
 from services.sheets_sync import sync_from_sheets
 
@@ -34,7 +35,7 @@ bot.params.clear()
 
 
 dp = Dispatcher()
-dp.include_routers(menu_router, handlers_router, callbacks_router)
+dp.include_routers(menu_router, admin_router, handlers_router, callbacks_router)
 
 scheduler = AsyncIOScheduler()
 
