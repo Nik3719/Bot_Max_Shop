@@ -1,0 +1,11 @@
+.env
+*.pdf
+venv/
+db/bot_users.db
+__pycache__/
+.vscode/
+*.txt
+*.log
+*.docx
+1.md
+*,json
