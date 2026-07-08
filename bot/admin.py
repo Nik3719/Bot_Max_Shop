@@ -14,23 +14,17 @@ logger = logging.getLogger(__name__)
 admin_router = Router()
 
 
-def admin_only(func):
-    async def wrapper(event: MessageCreated, context: MemoryContext):
-        if event.message.sender.user_id not in config.ADMIN_IDS:
-            await event.message.answer(texts.ADMIN_ONLY)
-            return
-        return await func(event, context)
-    return wrapper
+from magic_filter import F
+
+admin_router.filters.append(F.message.sender.user_id.in_(config.ADMIN_IDS))
 
 
 @admin_router.message_created(Command("help"))
-@admin_only
 async def cmd_admin_help(event: MessageCreated, context: MemoryContext):
     await event.message.answer(texts.HELP_ADMIN)
 
 
 @admin_router.message_created(Command("sync_from_sheets"))
-@admin_only
 async def cmd_sync_from(event: MessageCreated, context: MemoryContext):
     await event.message.answer(texts.SYNC_STARTED)
     try:
@@ -41,7 +35,6 @@ async def cmd_sync_from(event: MessageCreated, context: MemoryContext):
 
 
 @admin_router.message_created(Command("sync_to_sheets"))
-@admin_only
 async def cmd_sync_to(event: MessageCreated, context: MemoryContext):
     await event.message.answer("Выгрузка заявок...")
     try:
@@ -52,7 +45,6 @@ async def cmd_sync_to(event: MessageCreated, context: MemoryContext):
 
 
 @admin_router.message_created(Command("sync_status"))
-@admin_only
 async def cmd_sync_status(event: MessageCreated, context: MemoryContext):
     log = await db.get_last_sync()
     if log:
@@ -62,14 +54,12 @@ async def cmd_sync_status(event: MessageCreated, context: MemoryContext):
 
 
 @admin_router.message_created(Command("stats"))
-@admin_only
 async def cmd_stats(event: MessageCreated, context: MemoryContext):
     stats = await db.get_stats()
     await event.message.answer(f"Статистика:\nПользователей: {stats['users']}\nТоваров: {stats['products']}\nЗаявок: {stats['orders']}")
 
 
 @admin_router.message_created(Command("orders"))
-@admin_only
 async def cmd_orders(event: MessageCreated, context: MemoryContext):
     orders = await db.get_new_orders()
     if not orders:

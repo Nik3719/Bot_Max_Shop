@@ -106,7 +106,7 @@ async def show_products_page(event, page: int):
         if p['photo_url']:
             await event.bot.send_message(chat_id=chat_id_to_send, text=f"📷 Фото: {p['photo_url']}\n{text}", attachments=[markup])
         else:
-            await event.bot.send_message(chat_id=chat_id_to_send, text=text, attachments=[markup])
+            await event.bot.send_message(chat_id=chat_id_to_send, text=f"📷 Фото недоступно\n{text}", attachments=[markup])
             
     # Navigation
     nav_builder = InlineKeyboardBuilder()
