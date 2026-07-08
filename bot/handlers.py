@@ -70,6 +70,10 @@ async def process_phone(event: MessageCreated, context: MemoryContext):
         logger.error(f"Ошибка при сохранении пользователя: {e}")
         await event.message.answer(texts.REG_ERROR)
 
+@router.message_created(Command("help"))
+async def cmd_help(event: MessageCreated, context: MemoryContext):
+    await event.message.answer(texts.HELP_USER)
+
 # --- МАГАЗИН ---
 async def show_products_page(event, page: int):
     products = await db.get_active_products()

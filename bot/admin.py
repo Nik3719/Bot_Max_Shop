@@ -23,6 +23,12 @@ def admin_only(func):
     return wrapper
 
 
+@admin_router.message_created(Command("help"))
+@admin_only
+async def cmd_admin_help(event: MessageCreated, context: MemoryContext):
+    await event.message.answer(texts.HELP_ADMIN)
+
+
 @admin_router.message_created(Command("sync_from_sheets"))
 @admin_only
 async def cmd_sync_from(event: MessageCreated, context: MemoryContext):

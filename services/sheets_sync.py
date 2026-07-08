@@ -62,11 +62,20 @@ async def sync_from_sheets(admin_user_id=None) -> dict:
         sheet_product_ids.add(pid)
         
         existing = await db.get_product_by_id(pid)
-        await db.upsert_product(pid, name, desc, price, cat, photo)
         
         if existing:
-            updated += 1
+            changed = (
+                existing['name'] != name or
+                existing['description'] != desc or
+                existing['price'] != price or
+                existing.get('category', '') != cat or
+                existing.get('photo_url', '') != photo
+            )
+            if changed:
+                await db.upsert_product(pid, name, desc, price, cat, photo)
+                updated += 1
         else:
+            await db.upsert_product(pid, name, desc, price, cat, photo)
             inserted += 1
             
     for pid in db_product_ids:

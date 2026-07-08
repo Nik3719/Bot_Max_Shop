@@ -1,0 +1,71 @@
+"""
+Скрипт для заполнения Google Sheets тестовыми товарами.
+Запуск: python -m scripts.populate_sheet
+"""
+import asyncio
+import gspread_asyncio
+from google.oauth2.service_account import Credentials
+from config import SPREADSHEET_ID, GOOGLE_CREDENTIALS_FILE
+
+
+HEADERS = ["product_id", "name", "description", "price", "category", "photo_url"]
+
+TEST_PRODUCTS = [
+    ["P001", "iPhone 15 Pro Max", "Флагман Apple. 6.7\" OLED, чип A17 Pro, тройная камера 48 Мп, титановый корпус.", 149990, "Смартфоны", ""],
+    ["P002", "Samsung Galaxy S24 Ultra", "Титановый корпус, S Pen, камера 200 Мп, AI-функции, 6.8\" Dynamic AMOLED 2X.", 134990, "Смартфоны", ""],
+    ["P003", "Xiaomi 14 Ultra", "Камера Leica, Snapdragon 8 Gen 3, 90 Вт зарядка, 5000 мАч.", 89990, "Смартфоны", ""],
+    ["P004", "MacBook Air M3", "15\" Liquid Retina, чип M3, 18 часов батареи, 8 ГБ ОЗУ, 256 ГБ SSD.", 139990, "Ноутбуки", ""],
+    ["P005", "ASUS ROG Strix G16", "Intel i9-13980HX, RTX 4070, 16\" 240 Гц, 32 ГБ ОЗУ, 1 ТБ SSD.", 179990, "Ноутбуки", ""],
+    ["P006", "AirPods Pro 2", "Активное шумоподавление, адаптивный звук, USB-C, до 30 ч с кейсом.", 24990, "Аксессуары", ""],
+    ["P007", "Sony WH-1000XM5", "Лучшее шумоподавление, 30 часов работы, LDAC, мультиподключение.", 29990, "Аксессуары", ""],
+    ["P008", "iPad Pro 12.9 M2", "12.9\" Liquid Retina XDR, чип M2, поддержка Apple Pencil 2, Wi-Fi 6E.", 119990, "Планшеты", ""],
+    ["P009", "Samsung Galaxy Tab S9 Ultra", "14.6\" Dynamic AMOLED 2X, Snapdragon 8 Gen 2, S Pen, IP68.", 109990, "Планшеты", ""],
+    ["P010", "Apple Watch Ultra 2", "49 мм титан, GPS + Cellular, глубиномер, сирена 86 дБ, 36 ч батареи.", 79990, "Умные часы", ""],
+    ["P011", "JBL Charge 5", "Портативная колонка, IP67, 20 ч работы, PartyBoost, мощный бас.", 12990, "Аксессуары", ""],
+    ["P012", "Dyson V15 Detect", "Беспроводной пылесос, лазерная подсветка пыли, 60 мин работы.", 59990, "Техника для дома", ""],
+]
+
+
+def get_creds():
+    creds = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_FILE)
+    scoped = creds.with_scopes([
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ])
+    return scoped
+
+
+async def main():
+    agcm = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
+    agc = await agcm.authorize()
+    sh = await agc.open_by_key(SPREADSHEET_ID)
+
+    # --- Лист "Товары" ---
+    try:
+        ws = await sh.worksheet("Товары")
+        await ws.clear()
+        print("Лист 'Товары' очищен.")
+    except Exception:
+        ws = await sh.add_worksheet(title="Товары", rows=100, cols=10)
+        print("Лист 'Товары' создан.")
+
+    await ws.update("A1", [HEADERS])
+    await ws.update("A2", TEST_PRODUCTS)
+    print(f"Добавлено {len(TEST_PRODUCTS)} тестовых товаров.")
+
+    # --- Лист "Заявки" (если не существует) ---
+    try:
+        await sh.worksheet("Заявки")
+        print("Лист 'Заявки' уже существует.")
+    except Exception:
+        orders_headers = ["id", "full_name", "phone", "product_name", "price", "status", "created_at"]
+        ws_orders = await sh.add_worksheet(title="Заявки", rows=100, cols=10)
+        await ws_orders.update("A1", [orders_headers])
+        print("Лист 'Заявки' создан с заголовками.")
+
+    print("✅ Готово! Таблица заполнена тестовыми данными.")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
