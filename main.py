@@ -47,7 +47,7 @@ async def auto_sync_job():
         logger.info(msg)
         for admin_id in ADMIN_IDS:
             try:
-                await bot.send_message(admin_id, text=msg)
+                await bot.send_message(user_id=admin_id, text=msg)
             except Exception as e:
                 logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
     except Exception as e:

@@ -144,7 +144,7 @@ async def get_order_by_id(order_id: int) -> dict:
             cursor = await db.execute(SELECT_ORDER_BY_ID, (order_id,))
             r = await cursor.fetchone()
             if r:
-                return {'id': r[0], 'max_user_id': r[1], 'product_name': r[2]}
+                return {'id': r[0], 'max_user_id': r[1], 'full_name': r[2], 'phone': r[3], 'product_name': r[4], 'price': r[5], 'status': r[6], 'created_at': r[7], 'comment': r[8], 'category': r[9], 'photo_url': r[10]}
             return None
     except Exception as e:
         logger.error(f"Ошибка БД при получении заявки {order_id}: {e}")

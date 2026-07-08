@@ -130,4 +130,8 @@ async def sync_to_sheets(admin_user_id=None):
     for o in orders:
         await db.update_order_status(o['id'], 'viewed')
 
+    log_id = await db.add_sync_log('success', admin_user_id)
+    if log_id:
+        await db.update_sync_log(log_id, 'success', 0, len(orders), 0)
+
     return len(orders)

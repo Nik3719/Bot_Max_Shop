@@ -158,8 +158,7 @@ async def process_order_comment(event: MessageCreated, context: MemoryContext):
             await event.message.answer(f"✅ Заявка #{order_id} оформлена! Мы свяжемся с вами по номеру {user_phone}. Ожидайте звонка.")
             
             # Уведомление админов
-            o = await db.get_new_orders()
-            this_order = next((x for x in o if x['id'] == order_id), None)
+            this_order = await db.get_order_by_id(order_id)
             if this_order:
                 admin_text = texts.format_order_admin(this_order)
                 for aid in config.ADMIN_IDS:
@@ -180,7 +179,7 @@ async def process_order_comment(event: MessageCreated, context: MemoryContext):
 @router.message_created()
 async def process_text(event: MessageCreated, context: MemoryContext):
     user_id = event.message.sender.user_id
-    if not await db.search_user(user_id):
+    if user_id not in config.ADMIN_IDS and not await db.search_user(user_id):
         await event.message.answer(texts.ACCESS_DENIED)
         return
         

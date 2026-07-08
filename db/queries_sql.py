@@ -96,7 +96,7 @@ limit ?;
 """
 
 SELECT_ORDER_BY_ID = """
-select o.id, u.max_user_id, p.name
+select o.id, u.max_user_id, u.full_name, u.phone, p.name, p.price, o.status, o.created_at, o.comment, p.category, p.photo_url
 from orders o
 join users u on o.max_user_id = u.max_user_id
 join products p on o.product_id = p.product_id
