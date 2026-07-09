@@ -11,10 +11,28 @@ from bot import texts
 from bot.states import RegState, OrderState
 from bot.validators import validate_name, validate_and_clean_phone
 from bot.menu import get_main_menu
+from bot.utils import send_long_message
 import db
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+user_last_message_time: dict[int, float] = {}
+user_last_warning_time: dict[int, float] = {}
+
+async def check_rate_limit(user_id: int, message_timestamp: int) -> tuple[bool, bool]:
+    ts_sec = message_timestamp / 1000
+    last_time = user_last_message_time.get(user_id, 0)
+    
+    if ts_sec - last_time < 3:
+        last_warning = user_last_warning_time.get(user_id, 0)
+        if ts_sec - last_warning >= 5:
+            user_last_warning_time[user_id] = ts_sec
+            return False, True
+        return False, False
+
+    user_last_message_time[user_id] = ts_sec
+    return True, False
 
 @router.bot_started()
 async def bot_started(event: BotStarted, context: MemoryContext):
@@ -136,7 +154,7 @@ async def cmd_myorders(event: MessageCreated, context: MemoryContext):
     for o in orders:
         status_map = {'new': '🕐 Ожидает', 'viewed': '👀 Просмотрена', 'accepted': '✅ Принята', 'rejected': '❌ Отклонена'}
         res += f"#{o['id']} | {o['product_name']} | {o['price']} ₽ | {status_map.get(o['status'], o['status'])} | {o['created_at']}\n"
-    await event.message.answer(res)
+    await send_long_message(event, res)
 
 @router.message_created(OrderState.WAIT_COMMENT)
 async def process_order_comment(event: MessageCreated, context: MemoryContext):
@@ -179,6 +197,13 @@ async def process_order_comment(event: MessageCreated, context: MemoryContext):
 @router.message_created()
 async def process_text(event: MessageCreated, context: MemoryContext):
     user_id = event.message.sender.user_id
+
+    is_allowed, should_warn = await check_rate_limit(user_id, event.message.timestamp)
+    if not is_allowed:
+        if should_warn:
+            await event.message.answer(texts.SPAM_WARNING)
+        return
+
     if user_id not in config.ADMIN_IDS and not await db.search_user(user_id):
         await event.message.answer(texts.ACCESS_DENIED)
         return

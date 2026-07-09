@@ -6,6 +6,7 @@ from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 from maxapi.types.attachments.buttons import CallbackButton
 
 import config
+from bot.utils import send_long_message
 from bot import texts
 import db
 from services.sheets_sync import sync_from_sheets, sync_to_sheets
@@ -86,4 +87,4 @@ async def cmd_orders_all(event: MessageCreated, context: MemoryContext):
         status_map = {'new': '🕐 Ожидает', 'viewed': '👀 Просмотрена', 'accepted': '✅ Принята', 'rejected': '❌ Отклонена'}
         res += f"#{o['id']} | {o['product_name']} | {o['price']} ₽ | {status_map.get(o['status'], o['status'])} | {o['created_at']}\n"
     
-    await event.message.answer(res)
+    await send_long_message(event, res)
