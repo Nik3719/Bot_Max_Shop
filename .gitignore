@@ -11,4 +11,4 @@ db/*.db-journal
 *.json
 !credentials.json.example
 .vscode/
-.DS_Store
+*.docx
