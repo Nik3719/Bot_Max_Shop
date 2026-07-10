@@ -102,13 +102,10 @@ async def cmd_help(event: MessageCreated, context: MemoryContext):
     await event.message.answer(texts.HELP_USER)
 
 # --- МАГАЗИН ---
-async def show_products_page(event, page: int):
+async def show_products_page(bot, chat_id: str, page: int):
     products = await db.get_active_products()
     if not products:
-        try:
-            await event.message.answer(texts.NO_PRODUCTS)
-        except AttributeError:
-            await event.bot.send_message(chat_id=event.recipient.chat_id, text=texts.NO_PRODUCTS)
+        await bot.send_message(chat_id=chat_id, text=texts.NO_PRODUCTS)
         return
         
     total_pages = math.ceil(len(products) / config.ITEMS_PER_PAGE)
@@ -122,24 +119,15 @@ async def show_products_page(event, page: int):
         text = texts.format_product(p)
         markup = build_product_keyboard(p['product_id'])
         
-        chat_id_to_send = None
-        try:
-            chat_id_to_send = event.message.recipient.chat_id or event.message.sender.user_id
-        except AttributeError:
-            chat_id_to_send = event.recipient.chat_id or event.sender.user_id
-            
         if p['photo_url']:
-            await event.bot.send_message(chat_id=chat_id_to_send, text=f"📷 Фото: {p['photo_url']}\n{text}", attachments=[markup])
+            msg_text = f"📷 Фото: {p['photo_url']}\n{text}"
         else:
-            await event.bot.send_message(chat_id=chat_id_to_send, text=f"📷 Фото недоступно\n{text}", attachments=[markup])
+            msg_text = f"📷 Фото недоступно\n{text}"
             
-    # Navigation
+        await bot.send_message(chat_id=chat_id, text=msg_text, attachments=[markup])
+        
     nav_markup = build_pagination_keyboard(page, total_pages)
-    
-    try:
-        await event.message.answer("Навигация:", attachments=[nav_markup])
-    except AttributeError:
-        await event.bot.send_message(chat_id=chat_id_to_send, text="Навигация:", attachments=[nav_markup])
+    await bot.send_message(chat_id=chat_id, text="Навигация:", attachments=[nav_markup])
 
 @router.message_created(Command("myorders"))
 async def cmd_myorders(event: MessageCreated, context: MemoryContext):
@@ -210,7 +198,8 @@ async def process_text(event: MessageCreated, context: MemoryContext):
         
     text = event.message.body.text or ""
     if text == "🛍 Лента товаров":
-        await show_products_page(event, 1)
+        chat_id_to_send = event.message.recipient.chat_id or event.message.sender.user_id
+        await show_products_page(event.bot, chat_id_to_send, 1)
     elif text == "📋 Мои заявки":
         await cmd_myorders(event, context)
     else:

@@ -21,7 +21,16 @@ async def process_noop_callback(event: MessageCallback, context: MemoryContext):
 async def process_page_callback(event: MessageCallback, context: MemoryContext):
     payload = event.callback.payload
     page = int(payload.split("_")[1])
-    await show_products_page(event, page)
+    
+    user_id = event.callback.user.user_id
+    chat_id = event.message.recipient.chat_id or user_id
+    
+    try:
+        await event.answer()
+    except Exception as e:
+        logger.warning(f"Не удалось ответить на коллбэк: {e}")
+        
+    await show_products_page(event.bot, chat_id, page)
 
 @router.message_callback(F.callback.payload.startswith("buy_"))
 async def process_buy_callback(event: MessageCallback, context: MemoryContext):

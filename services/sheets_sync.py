@@ -110,6 +110,9 @@ async def sync_from_sheets(admin_user_id=None) -> dict:
             await _save_product(product)
             inserted += 1
 
+    if len(rows) > 0 and not sheet_product_ids:
+        raise ValueError("Не найдено валидных товаров. Возможно, изменены заголовки в таблице!")
+
     deactivated = await _deactivate_missing(db_product_ids, sheet_product_ids)
 
     log_id = await db.add_sync_log('success', admin_user_id)

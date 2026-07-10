@@ -22,4 +22,4 @@ GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "max-bot-shop-9b8
 # Автосинхронизация
 SYNC_INTERVAL_HOURS = int(os.getenv("SYNC_INTERVAL_HOURS", 24))
 
-ITEMS_PER_PAGE = 5
+ITEMS_PER_PAGE = int(os.getenv("ITEMS_PER_PAGE", 5))
