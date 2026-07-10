@@ -11,7 +11,7 @@ from bot import texts
 from bot.states import RegState, OrderState
 from bot.validators import validate_name, validate_and_clean_phone
 from bot.menu import get_main_menu
-from bot.utils import send_long_message
+from bot.utils import send_long_message, build_product_keyboard, build_pagination_keyboard
 import db
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,15 @@ async def check_rate_limit(user_id: int, message_timestamp: int) -> tuple[bool, 
 
     user_last_message_time[user_id] = ts_sec
     return True, False
+
+async def ensure_registered(event: MessageCreated, user_id: int) -> bool:
+    if user_id in config.ADMIN_IDS:
+        return True
+    is_registered = await db.search_user(user_id)
+    if not is_registered:
+        await event.message.answer(texts.ACCESS_DENIED)
+        return False
+    return True
 
 @router.bot_started()
 async def bot_started(event: BotStarted, context: MemoryContext):
@@ -111,9 +120,7 @@ async def show_products_page(event, page: int):
     
     for p in page_products:
         text = texts.format_product(p)
-        builder = InlineKeyboardBuilder()
-        builder.row(CallbackButton(text="🛒 Оформить заявку", payload=f"buy_{p['product_id']}"))
-        markup = builder.as_markup()
+        markup = build_product_keyboard(p['product_id'])
         
         chat_id_to_send = None
         try:
@@ -127,24 +134,18 @@ async def show_products_page(event, page: int):
             await event.bot.send_message(chat_id=chat_id_to_send, text=f"📷 Фото недоступно\n{text}", attachments=[markup])
             
     # Navigation
-    nav_builder = InlineKeyboardBuilder()
-    row = []
-    if page > 1:
-        row.append(CallbackButton(text="← Назад", payload=f"page_{page-1}"))
-    row.append(CallbackButton(text=f"Стр. {page} / {total_pages}", payload="noop"))
-    if page < total_pages:
-        row.append(CallbackButton(text="Вперёд →", payload=f"page_{page+1}"))
-    
-    nav_builder.row(*row)
+    nav_markup = build_pagination_keyboard(page, total_pages)
     
     try:
-        await event.message.answer("Навигация:", attachments=[nav_builder.as_markup()])
+        await event.message.answer("Навигация:", attachments=[nav_markup])
     except AttributeError:
-        await event.bot.send_message(chat_id=chat_id_to_send, text="Навигация:", attachments=[nav_builder.as_markup()])
+        await event.bot.send_message(chat_id=chat_id_to_send, text="Навигация:", attachments=[nav_markup])
 
 @router.message_created(Command("myorders"))
 async def cmd_myorders(event: MessageCreated, context: MemoryContext):
     user_id = event.message.sender.user_id
+    if not await ensure_registered(event, user_id):
+        return
     orders = await db.get_user_orders(user_id)
     if not orders:
         await event.message.answer("У вас еще нет заявок.")
@@ -204,8 +205,7 @@ async def process_text(event: MessageCreated, context: MemoryContext):
             await event.message.answer(texts.SPAM_WARNING)
         return
 
-    if user_id not in config.ADMIN_IDS and not await db.search_user(user_id):
-        await event.message.answer(texts.ACCESS_DENIED)
+    if not await ensure_registered(event, user_id):
         return
         
     text = event.message.body.text or ""
