@@ -50,3 +50,24 @@ def format_order_admin(o: dict) -> str:
     photo = f"📷 Фото: {o['photo_url']}" if o.get('photo_url') else "📷 Фото недоступно"
     
     return f"🛒 НОВАЯ ЗАЯВКА #{o['id']}\n──────────────────────────────\n📦 Товар:   {o['product_name']}\n💰 Цена:    {o['price']} ₽\n🏷 Категория: {cat}\n{photo}\n\n👤 Покупатель: {o['full_name']}\n📞 Телефон:    {o['phone']}\n🆔 MAX ID:     {o['max_user_id']}\n\n💬 Комментарий: {o['comment']}\n\n🕐 Время заявки: {o['created_at']}\n──────────────────────────────"
+
+ORDER_DATA_ERROR = "Произошла ошибка при получении данных. Попробуйте еще раз."
+ORDER_CONFIRM_PROMPT = "Пожалуйста, подтвердите или отмените заявку с помощью кнопок выше."
+ORDER_NOT_FOUND_NOTIF = "Ошибка: данные не найдены"
+ORDER_NOT_FOUND_MSG = "Ошибка: данные о товаре не найдены. Попробуйте начать заново."
+ORDER_CREATED_NOTIF = "Заявка оформлена!"
+ORDER_CREATED_MSG = "✅ Заявка #{order_id} оформлена! Мы свяжемся с вами по номеру {phone}. Ожидайте звонка."
+ORDER_CREATE_ERROR = "Ошибка при создании заявки."
+ORDER_CANCELLED_NOTIF = "Отменено"
+ORDER_CANCELLED_MSG = "❌ Оформление заявки отменено."
+
+def format_final_card(product_name: str, price: int, user_name: str, phone: str, comment: str) -> str:
+    return (
+        "📋 Итоговая карточка заказа\n\n"
+        f"📦 Товар: {product_name}\n"
+        f"💰 Цена: {price} ₽\n\n"
+        f"👤 Имя: {user_name}\n"
+        f"📞 Телефон: {phone}\n"
+        f"💬 Комментарий: {comment or 'Нет'}\n\n"
+        "Подтверждаете оформление заявки?"
+    )

@@ -6,3 +6,4 @@ class RegState(StatesGroup):
 
 class OrderState(StatesGroup):
     WAIT_COMMENT = State()
+    WAIT_CONFIRM = State()

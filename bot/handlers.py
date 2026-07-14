@@ -155,33 +155,38 @@ async def process_order_comment(event: MessageCreated, context: MemoryContext):
     user_id = event.message.sender.user_id
     
     if pid:
-        order_id = await db.add_order(user_id, pid, comment)
-        if order_id:
-            user_phone = "Неизвестно"
-            user_data = await db.get_user_by_id(user_id)
-            if user_data:
-                user_phone = user_data['phone']
-                
-            await event.message.answer(f"✅ Заявка #{order_id} оформлена! Мы свяжемся с вами по номеру {user_phone}. Ожидайте звонка.")
+        await context.update_data(buy_comment=comment)
+        
+        product = await db.get_product_by_id(pid)
+        user_data = await db.get_user_by_id(user_id)
+        
+        if not product or not user_data:
+            await event.message.answer(texts.ORDER_DATA_ERROR)
+            await context.clear()
+            return
             
-            # Уведомление админов
-            this_order = await db.get_order_by_id(order_id)
-            if this_order:
-                admin_text = texts.format_order_admin(this_order)
-                for aid in config.ADMIN_IDS:
-                    try:
-                        builder = InlineKeyboardBuilder()
-                        builder.row(
-                            CallbackButton(text="✅ Принять", payload=f"admin_order_accept_{order_id}"),
-                            CallbackButton(text="❌ Отклонить", payload=f"admin_order_reject_{order_id}")
-                        )
-                        await event.bot.send_message(user_id=aid, text=admin_text, attachments=[builder.as_markup()])
-                    except Exception as e:
-                        logger.error(f"Не удалось отправить уведомление админу {aid}: {e}")
-        else:
-            await event.message.answer("Ошибка при создании заявки.")
-            
-    await context.clear()
+        final_text = texts.format_final_card(
+            product_name=product['name'],
+            price=product['price'],
+            user_name=user_data['full_name'],
+            phone=user_data['phone'],
+            comment=comment
+        )
+        
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="✅ Подтвердить", payload="confirm_buy"),
+            CallbackButton(text="❌ Отменить", payload="cancel_buy")
+        )
+        
+        await event.message.answer(final_text, attachments=[builder.as_markup()])
+        await context.set_state(OrderState.WAIT_CONFIRM)
+    else:
+        await context.clear()
+
+@router.message_created(OrderState.WAIT_CONFIRM)
+async def process_wait_confirmation(event: MessageCreated, context: MemoryContext):
+    await event.message.answer(texts.ORDER_CONFIRM_PROMPT)
 
 @router.message_created()
 async def process_text(event: MessageCreated, context: MemoryContext):
