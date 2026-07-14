@@ -42,15 +42,15 @@ async def process_buy_callback(event: MessageCallback, context: MemoryContext):
     pid = payload[4:]
     product = await db.get_product_by_id(pid)
     if not product:
-        await event.bot.send_message(chat_id=chat_id, text="Товар не найден или удален.")
+        await event.bot.send_message(chat_id=chat_id, text=texts.PRODUCT_NOT_FOUND_OR_DELETED)
         return
         
-    await context.update_data(buy_product_id=pid)
+    await context.update_data(buy_product_id=pid, buy_comment="")
     await context.set_state(OrderState.WAIT_COMMENT)
-    await event.answer(notification="Оформление заявки...")
+    await event.answer(notification=texts.ORDERING_PROCESS_NOTIF)
     await event.bot.send_message(
         chat_id=chat_id,
-        text=f"Вы оформляете заявку на: {product['name']}\n\n{texts.ASK_COMMENT}"
+        text=texts.ORDERING_PROMPT.format(p_name=product['name'], ask_comment=texts.ASK_COMMENT)
     )
 
 @router.message_callback(F.callback.payload.startswith("admin_order_"))
@@ -60,7 +60,8 @@ async def process_admin_order_callback(event: MessageCallback, context: MemoryCo
     chat_id = event.message.recipient.chat_id or user_id
     
     if user_id not in config.ADMIN_IDS:
-        await event.answer(notification=texts.ADMIN_NO_ACCESS_NOTIF)
+        await event.answer()
+        await event.bot.send_message(chat_id=chat_id, text=texts.ADMIN_NO_ACCESS_NOTIF)
         return
         
     parts = payload.split("_")
@@ -69,7 +70,8 @@ async def process_admin_order_callback(event: MessageCallback, context: MemoryCo
     
     order_info = await db.get_order_by_id(order_id)
     if not order_info:
-        await event.answer(notification=texts.ADMIN_ORDER_NOT_FOUND_NOTIF)
+        await event.answer()
+        await event.bot.send_message(chat_id=chat_id, text=texts.ADMIN_ORDER_NOT_FOUND_NOTIF)
         return
         
     current_status = order_info['status']
@@ -81,7 +83,8 @@ async def process_admin_order_callback(event: MessageCallback, context: MemoryCo
             alert_msg = texts.ADMIN_ORDER_ALREADY_REJECTED
         else:
             alert_msg = texts.ADMIN_ORDER_ALREADY_PROCESSED
-        await event.answer(notification=alert_msg)
+        await event.answer()
+        await event.bot.send_message(chat_id=chat_id, text=alert_msg)
         return
     
     status = 'accepted' if action == 'accept' else 'rejected'
@@ -109,14 +112,22 @@ async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
     chat_id = event.message.recipient.chat_id or user_id
     
     if not pid:
-        await event.answer(notification=texts.ORDER_NOT_FOUND_NOTIF)
+        await event.answer()
+        await event.bot.send_message(chat_id=chat_id, text=texts.ORDER_NOT_FOUND_NOTIF)
         return
         
+    # Сразу очищаем контекст до любых await-запросов к БД.
     await context.clear()
+    
+    # проверка актуальности товара
+    product = await db.get_product_by_id(pid)
+    if not product:
+        await event.bot.send_message(chat_id=chat_id, text=texts.PRODUCT_NOT_FOUND_OR_DELETED)
+        return
         
     order_id = await db.add_order(user_id, pid, comment)
     if order_id:
-        user_phone = "Неизвестно"
+        user_phone = texts.UNKNOWN_PHONE
         user_data = await db.get_user_by_id(user_id)
         if user_data:
             user_phone = user_data['phone']
@@ -149,7 +160,8 @@ async def process_cancel_buy(event: MessageCallback, context: MemoryContext):
     # Очищаем контекст сразу
     data = await context.get_data()
     if not data.get('buy_product_id'):
-        await event.answer(notification="Действие уже отменено")
+        await event.answer()
+        await event.bot.send_message(chat_id=chat_id, text=texts.ACTION_ALREADY_CANCELLED)
         return
         
     await context.clear()

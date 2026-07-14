@@ -25,12 +25,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info("Бот запускается")
 
-bot = Bot(
-    BOT_TOKEN,
-    default_connection=DefaultConnectionProperties(
-        headers={"Authorization": BOT_TOKEN}
-    ),
-)
+bot = Bot(BOT_TOKEN)
 bot.params.clear()
 
 
