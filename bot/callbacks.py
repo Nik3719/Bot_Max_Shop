@@ -5,7 +5,7 @@ from maxapi.context.context import MemoryContext
 from magic_filter import F
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 from maxapi.types.attachments.buttons import CallbackButton
-from bot.handlers import show_products_page
+from bot.views import show_products_page
 from bot.states import OrderState
 from bot import texts
 import db
@@ -13,6 +13,23 @@ import config
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+async def notify_admins_new_order(bot, order_id: int):
+    this_order = await db.get_order_by_id(order_id)
+    if not this_order:
+        return
+        
+    admin_text = texts.format_order_admin(this_order)
+    for aid in config.ADMIN_IDS:
+        try:
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="✅ Принять", payload=f"admin_order_accept_{order_id}"),
+                CallbackButton(text="❌ Отклонить", payload=f"admin_order_reject_{order_id}")
+            )
+            await bot.send_message(user_id=aid, text=admin_text, attachments=[builder.as_markup()])
+        except Exception as e:
+            logger.error(f"Не удалось отправить уведомление админу {aid}: {e}")
 
 @router.message_callback(F.callback.payload == "noop")
 async def process_noop_callback(event: MessageCallback, context: MemoryContext):
@@ -141,19 +158,7 @@ async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
         )
         
         # Уведомление админов
-        this_order = await db.get_order_by_id(order_id)
-        if this_order:
-            admin_text = texts.format_order_admin(this_order)
-            for aid in config.ADMIN_IDS:
-                try:
-                    builder = InlineKeyboardBuilder()
-                    builder.row(
-                        CallbackButton(text="✅ Принять", payload=f"admin_order_accept_{order_id}"),
-                        CallbackButton(text="❌ Отклонить", payload=f"admin_order_reject_{order_id}")
-                    )
-                    await event.bot.send_message(user_id=aid, text=admin_text, attachments=[builder.as_markup()])
-                except Exception as e:
-                    logger.error(f"Не удалось отправить уведомление админу {aid}: {e}")
+        await notify_admins_new_order(event.bot, order_id)
     else:
         await event.bot.send_message(chat_id=chat_id, text=texts.ORDER_CREATE_ERROR)
 
