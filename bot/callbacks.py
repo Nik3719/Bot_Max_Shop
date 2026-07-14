@@ -5,7 +5,7 @@ from maxapi.context.context import MemoryContext
 from magic_filter import F
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 from maxapi.types.attachments.buttons import CallbackButton
-from bot.utils import ensure_admin_callback, get_status_alert_message, notify_user_order_processed
+from bot.utils import ensure_admin_callback, get_status_alert_message, notify_user_order_processed, finalize_order
 from bot.views import show_products_page
 from bot.states import OrderState
 from bot import texts
@@ -14,23 +14,6 @@ import config
 
 logger = logging.getLogger(__name__)
 router = Router()
-
-async def notify_admins_new_order(bot, order_id: int):
-    this_order = await db.get_order_by_id(order_id)
-    if not this_order:
-        return
-        
-    admin_text = texts.format_order_admin(this_order)
-    for aid in config.ADMIN_IDS:
-        try:
-            builder = InlineKeyboardBuilder()
-            builder.row(
-                CallbackButton(text="✅ Принять", payload=f"admin_order_accept_{order_id}"),
-                CallbackButton(text="❌ Отклонить", payload=f"admin_order_reject_{order_id}")
-            )
-            await bot.send_message(user_id=aid, text=admin_text, attachments=[builder.as_markup()])
-        except Exception as e:
-            logger.error(f"Не удалось отправить уведомление админу {aid}: {e}")
 
 @router.message_callback(F.callback.payload == "noop")
 async def process_noop_callback(event: MessageCallback, context: MemoryContext):
@@ -114,10 +97,10 @@ async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
     
     if not pid or pid != payload_pid:
         await event.answer()
-        await event.bot.send_message(chat_id=chat_id, text="Эта карточка устарела. Вы начали оформление другого товара или отменили действие.")
+        await event.bot.send_message(chat_id=chat_id, text=texts.CARD_OUTDATED_NOTIF)
         return
         
-    # Сразу очищаем контекст до любых await-запросов к БД.
+    # очищаем контекст до любых await-запросов к БД.
     await context.clear()
     
     # проверка актуальности товара
@@ -126,23 +109,7 @@ async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
         await event.bot.send_message(chat_id=chat_id, text=texts.PRODUCT_NOT_FOUND_OR_DELETED)
         return
         
-    order_id = await db.add_order(user_id, pid, comment)
-    if order_id:
-        user_phone = texts.UNKNOWN_PHONE
-        user_data = await db.get_user_by_id(user_id)
-        if user_data:
-            user_phone = user_data['phone']
-            
-        await event.answer(notification=texts.ORDER_CREATED_NOTIF)
-        await event.bot.send_message(
-            chat_id=chat_id, 
-            text=texts.ORDER_CREATED_MSG.format(order_id=order_id, phone=user_phone)
-        )
-        
-        # Уведомление админов
-        await notify_admins_new_order(event.bot, order_id)
-    else:
-        await event.bot.send_message(chat_id=chat_id, text=texts.ORDER_CREATE_ERROR)
+    await finalize_order(event, user_id, chat_id, pid, comment)
 
 @router.message_callback(F.callback.payload.startswith("cancel_buy_"))
 async def process_cancel_buy(event: MessageCallback, context: MemoryContext):
@@ -155,7 +122,7 @@ async def process_cancel_buy(event: MessageCallback, context: MemoryContext):
     
     if not pid or pid != payload_pid:
         await event.answer()
-        await event.bot.send_message(chat_id=chat_id, text="Эта карточка устарела.")
+        await event.bot.send_message(chat_id=chat_id, text=texts.CARD_OUTDATED_CANCEL_NOTIF)
         return
         
     await context.clear()

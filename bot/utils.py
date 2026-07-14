@@ -71,3 +71,50 @@ async def notify_user_order_processed(bot, buyer_id: int, order_id: int, p_name:
         await bot.send_message(user_id=buyer_id, text=msg)
     except Exception as e:
         logger.error(f"Не удалось отправить ответ пользователю {buyer_id}: {e}")
+
+async def notify_admins_new_order(bot, order_id: int):
+    import logging
+    import db
+    import config
+    from bot import texts
+    from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
+    from maxapi.types.attachments.buttons import CallbackButton
+    
+    logger = logging.getLogger(__name__)
+    this_order = await db.get_order_by_id(order_id)
+    if not this_order:
+        return
+        
+    admin_text = texts.format_order_admin(this_order)
+    for aid in config.ADMIN_IDS:
+        try:
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="✅ Принять", payload=f"admin_order_accept_{order_id}"),
+                CallbackButton(text="❌ Отклонить", payload=f"admin_order_reject_{order_id}")
+            )
+            await bot.send_message(user_id=aid, text=admin_text, attachments=[builder.as_markup()])
+        except Exception as e:
+            logger.error(f"Не удалось отправить уведомление админу {aid}: {e}")
+
+async def finalize_order(event, user_id: int, chat_id: str, pid: str, comment: str):
+    import db
+    from bot import texts
+    
+    order_id = await db.add_order(user_id, pid, comment)
+    if order_id:
+        user_phone = texts.UNKNOWN_PHONE
+        user_data = await db.get_user_by_id(user_id)
+        if user_data:
+            user_phone = user_data['phone']
+            
+        await event.answer(notification=texts.ORDER_CREATED_NOTIF)
+        await event.bot.send_message(
+            chat_id=chat_id, 
+            text=texts.ORDER_CREATED_MSG.format(order_id=order_id, phone=user_phone)
+        )
+        
+        # Уведомление админов
+        await notify_admins_new_order(event.bot, order_id)
+    else:
+        await event.bot.send_message(chat_id=chat_id, text=texts.ORDER_CREATE_ERROR)

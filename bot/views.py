@@ -29,4 +29,4 @@ async def show_products_page(bot, chat_id: str, page: int):
         await bot.send_message(chat_id=chat_id, text=msg_text, attachments=[markup])
         
     nav_markup = build_pagination_keyboard(page, total_pages)
-    await bot.send_message(chat_id=chat_id, text="Навигация:", attachments=[nav_markup])
+    await bot.send_message(chat_id=chat_id, text=texts.NAVIGATION_TEXT, attachments=[nav_markup])

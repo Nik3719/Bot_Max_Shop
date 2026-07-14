@@ -135,11 +135,11 @@ async def process_order_comment(event: MessageCreated, context: MemoryContext):
         return
     
     if text.startswith('/') and text != "/skip":
-        await event.message.answer("Пожалуйста, введите текстовый комментарий или /skip.")
+        await event.message.answer(texts.COMMENT_REQUIRE_TEXT)
         return
         
     if len(text) > 500:
-        await event.message.answer("Слишком длинный комментарий (максимум 500 символов). Пожалуйста, сократите его.")
+        await event.message.answer(texts.COMMENT_TOO_LONG)
         return
         
     comment = text if text != "/skip" else ""

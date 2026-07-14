@@ -65,6 +65,12 @@ ORDER_CREATE_ERROR = "Ошибка при создании заявки."
 ORDER_CANCELLED_NOTIF = "Отменено"
 ORDER_CANCELLED_MSG = "❌ Оформление заявки отменено."
 
+CARD_OUTDATED_NOTIF = "Эта карточка устарела. Вы начали оформление другого товара или отменили действие."
+CARD_OUTDATED_CANCEL_NOTIF = "Эта карточка устарела."
+COMMENT_REQUIRE_TEXT = "Пожалуйста, введите текстовый комментарий или /skip."
+COMMENT_TOO_LONG = "Слишком длинный комментарий (максимум 500 символов). Пожалуйста, сократите его."
+NAVIGATION_TEXT = "Навигация:"
+
 def format_final_card(product_name: str, price: int, user_name: str, phone: str, comment: str) -> str:
     return (
         "📋 Итоговая карточка заказа\n\n"
