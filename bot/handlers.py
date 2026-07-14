@@ -149,17 +149,17 @@ async def cmd_myorders(event: MessageCreated, context: MemoryContext):
 async def process_order_comment(event: MessageCreated, context: MemoryContext):
     text = event.message.body.text or ""
     
-    if text in ["🛍 Лента товаров", "📋 Мои заявки"]:
+    if text in texts.ALL_MENU_BUTTONS:
         await context.clear()
-        if text == "🛍 Лента товаров":
+        if text == texts.MENU_BTN_CATALOG:
             chat_id_to_send = event.message.recipient.chat_id or event.message.sender.user_id
             await show_products_page(event.bot, chat_id_to_send, 1)
         else:
             await cmd_myorders(event, context)
         return
-        
+    
     if text.startswith('/') and text != "/skip":
-        await event.message.answer("Пожалуйста, введите текстовый комментарий или нажмите /skip.")
+        await event.message.answer("Пожалуйста, введите текстовый комментарий или /skip.")
         return
         
     if len(text) > 500:
@@ -220,10 +220,10 @@ async def process_text(event: MessageCreated, context: MemoryContext):
         return
         
     text = event.message.body.text or ""
-    if text == "🛍 Лента товаров":
+    if text == texts.MENU_BTN_CATALOG:
         chat_id_to_send = event.message.recipient.chat_id or event.message.sender.user_id
         await show_products_page(event.bot, chat_id_to_send, 1)
-    elif text == "📋 Мои заявки":
+    elif text == texts.MENU_BTN_ORDERS:
         await cmd_myorders(event, context)
     else:
         if text.startswith('/'):
