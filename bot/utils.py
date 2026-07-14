@@ -41,3 +41,33 @@ def build_pagination_keyboard(page: int, total_pages: int) -> list:
     
     builder.row(*row)
     return builder.as_markup()
+
+async def ensure_admin_callback(event, chat_id: str) -> bool:
+    import config
+    from bot import texts
+    if event.callback.user.user_id not in config.ADMIN_IDS:
+        await event.answer()
+        await event.bot.send_message(chat_id=chat_id, text=texts.ADMIN_NO_ACCESS_NOTIF)
+        return False
+    return True
+
+def get_status_alert_message(current_status: str) -> str:
+    from bot import texts
+    if current_status == 'accepted':
+        return texts.ADMIN_ORDER_ALREADY_ACCEPTED
+    elif current_status == 'rejected':
+        return texts.ADMIN_ORDER_ALREADY_REJECTED
+    return texts.ADMIN_ORDER_ALREADY_PROCESSED
+
+async def notify_user_order_processed(bot, buyer_id: int, order_id: int, p_name: str, status: str):
+    import logging
+    from bot import texts
+    logger = logging.getLogger(__name__)
+    if status == 'accepted':
+        msg = texts.USER_ORDER_ACCEPTED.format(order_id=order_id, p_name=p_name)
+    else:
+        msg = texts.USER_ORDER_REJECTED.format(order_id=order_id, p_name=p_name)
+    try:
+        await bot.send_message(user_id=buyer_id, text=msg)
+    except Exception as e:
+        logger.error(f"Не удалось отправить ответ пользователю {buyer_id}: {e}")

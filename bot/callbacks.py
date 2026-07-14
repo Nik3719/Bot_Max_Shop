@@ -5,6 +5,7 @@ from maxapi.context.context import MemoryContext
 from magic_filter import F
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 from maxapi.types.attachments.buttons import CallbackButton
+from bot.utils import ensure_admin_callback, get_status_alert_message, notify_user_order_processed
 from bot.views import show_products_page
 from bot.states import OrderState
 from bot import texts
@@ -73,12 +74,9 @@ async def process_buy_callback(event: MessageCallback, context: MemoryContext):
 @router.message_callback(F.callback.payload.startswith("admin_order_"))
 async def process_admin_order_callback(event: MessageCallback, context: MemoryContext):
     payload = event.callback.payload
-    user_id = event.callback.user.user_id
-    chat_id = event.message.recipient.chat_id or user_id
+    chat_id = event.message.recipient.chat_id or event.callback.user.user_id
     
-    if user_id not in config.ADMIN_IDS:
-        await event.answer()
-        await event.bot.send_message(chat_id=chat_id, text=texts.ADMIN_NO_ACCESS_NOTIF)
+    if not await ensure_admin_callback(event, chat_id):
         return
         
     parts = payload.split("_")
@@ -92,14 +90,8 @@ async def process_admin_order_callback(event: MessageCallback, context: MemoryCo
         return
         
     current_status = order_info['status']
-    
     if current_status != 'new':
-        if current_status == 'accepted':
-            alert_msg = texts.ADMIN_ORDER_ALREADY_ACCEPTED
-        elif current_status == 'rejected':
-            alert_msg = texts.ADMIN_ORDER_ALREADY_REJECTED
-        else:
-            alert_msg = texts.ADMIN_ORDER_ALREADY_PROCESSED
+        alert_msg = get_status_alert_message(current_status)
         await event.answer()
         await event.bot.send_message(chat_id=chat_id, text=alert_msg)
         return
@@ -107,17 +99,7 @@ async def process_admin_order_callback(event: MessageCallback, context: MemoryCo
     status = 'accepted' if action == 'accept' else 'rejected'
     await db.update_order_status(order_id, status)
     
-    buyer_id = order_info['max_user_id']
-    p_name = order_info['product_name']
-    if status == 'accepted':
-        msg = texts.USER_ORDER_ACCEPTED.format(order_id=order_id, p_name=p_name)
-    else:
-        msg = texts.USER_ORDER_REJECTED.format(order_id=order_id, p_name=p_name)
-    try:
-        await event.bot.send_message(user_id=buyer_id, text=msg)
-    except Exception as e:
-        logger.error(f"Не удалось отправить ответ пользователю {buyer_id}: {e}")
-            
+    await notify_user_order_processed(event.bot, order_info['max_user_id'], order_id, order_info['product_name'], status)
     await event.bot.send_message(chat_id=chat_id, text=texts.ADMIN_ORDER_STATUS_CHANGED.format(order_id=order_id, status=status))
 
 @router.message_callback(F.callback.payload.startswith("confirm_buy_"))
