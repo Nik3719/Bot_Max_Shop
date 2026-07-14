@@ -60,30 +60,45 @@ async def process_admin_order_callback(event: MessageCallback, context: MemoryCo
     chat_id = event.message.recipient.chat_id or user_id
     
     if user_id not in config.ADMIN_IDS:
-        await event.answer(notification="Нет прав")
+        await event.answer(notification=texts.ADMIN_NO_ACCESS_NOTIF)
         return
         
     parts = payload.split("_")
     action = parts[2]
     order_id = int(parts[3])
     
+    order_info = await db.get_order_by_id(order_id)
+    if not order_info:
+        await event.answer(notification=texts.ADMIN_ORDER_NOT_FOUND_NOTIF)
+        return
+        
+    current_status = order_info['status']
+    
+    if current_status != 'new':
+        if current_status == 'accepted':
+            alert_msg = texts.ADMIN_ORDER_ALREADY_ACCEPTED
+        elif current_status == 'rejected':
+            alert_msg = texts.ADMIN_ORDER_ALREADY_REJECTED
+        else:
+            alert_msg = texts.ADMIN_ORDER_ALREADY_PROCESSED
+        await event.answer(notification=alert_msg)
+        return
+    
     status = 'accepted' if action == 'accept' else 'rejected'
     await db.update_order_status(order_id, status)
     
-    order_info = await db.get_order_by_id(order_id)
-    if order_info:
-        buyer_id = order_info['max_user_id']
-        p_name = order_info['product_name']
-        if status == 'accepted':
-            msg = f"🎉 Ваша заявка #{order_id} на «{p_name}» принята! С вами свяжутся в ближайшее время."
-        else:
-            msg = f"😔 Заявка #{order_id} на «{p_name}» отклонена. Для уточнения деталей обратитесь к администратору."
-        try:
-            await event.bot.send_message(user_id=buyer_id, text=msg)
-        except Exception as e:
-            logger.error(f"Не удалось отправить ответ пользователю {buyer_id}: {e}")
+    buyer_id = order_info['max_user_id']
+    p_name = order_info['product_name']
+    if status == 'accepted':
+        msg = texts.USER_ORDER_ACCEPTED.format(order_id=order_id, p_name=p_name)
+    else:
+        msg = texts.USER_ORDER_REJECTED.format(order_id=order_id, p_name=p_name)
+    try:
+        await event.bot.send_message(user_id=buyer_id, text=msg)
+    except Exception as e:
+        logger.error(f"Не удалось отправить ответ пользователю {buyer_id}: {e}")
             
-    await event.bot.send_message(chat_id=chat_id, text=f"Заявка #{order_id} переведена в статус {status}.")
+    await event.bot.send_message(chat_id=chat_id, text=texts.ADMIN_ORDER_STATUS_CHANGED.format(order_id=order_id, status=status))
 
 @router.message_callback(F.callback.payload == "confirm_buy")
 async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
@@ -94,7 +109,7 @@ async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
     chat_id = event.message.recipient.chat_id or user_id
     
     if not pid:
-        await event.answer(notification=texts.ORDER_NOT_FOUND_NOTIF, alert=True)
+        await event.answer(notification=texts.ORDER_NOT_FOUND_NOTIF)
         return
         
     await context.clear()
@@ -134,7 +149,7 @@ async def process_cancel_buy(event: MessageCallback, context: MemoryContext):
     # Очищаем контекст сразу
     data = await context.get_data()
     if not data.get('buy_product_id'):
-        await event.answer(notification="Действие уже отменено", alert=True)
+        await event.answer(notification="Действие уже отменено")
         return
         
     await context.clear()

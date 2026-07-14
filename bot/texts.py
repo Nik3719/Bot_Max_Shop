@@ -71,3 +71,13 @@ def format_final_card(product_name: str, price: int, user_name: str, phone: str,
         f"💬 Комментарий: {comment or 'Нет'}\n\n"
         "Подтверждаете оформление заявки?"
     )
+
+ADMIN_NO_ACCESS_NOTIF = "Нет прав"
+ADMIN_ORDER_NOT_FOUND_NOTIF = "Заявка не найдена"
+ADMIN_ORDER_ALREADY_ACCEPTED = "Эта заявка уже ПРИНЯТА другим администратором (или вами)!"
+ADMIN_ORDER_ALREADY_REJECTED = "Эта заявка уже ОТКЛОНЕНА!"
+ADMIN_ORDER_ALREADY_PROCESSED = "Эта заявка уже обработана!"
+ADMIN_ORDER_STATUS_CHANGED = "Заявка #{order_id} переведена в статус {status}."
+
+USER_ORDER_ACCEPTED = "🎉 Ваша заявка #{order_id} на «{p_name}» принята! С вами свяжутся в ближайшее время."
+USER_ORDER_REJECTED = "😔 Заявка #{order_id} на «{p_name}» отклонена. Для уточнения деталей обратитесь к администратору."
