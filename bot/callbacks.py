@@ -103,7 +103,7 @@ async def process_admin_order_callback(event: MessageCallback, context: MemoryCo
             
     await event.bot.send_message(chat_id=chat_id, text=texts.ADMIN_ORDER_STATUS_CHANGED.format(order_id=order_id, status=status))
 
-@router.message_callback(F.callback.payload == "confirm_buy")
+@router.message_callback(F.callback.payload.startswith("confirm_buy_"))
 async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
     data = await context.get_data()
     pid = data.get('buy_product_id')
@@ -111,9 +111,11 @@ async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
     user_id = event.callback.user.user_id
     chat_id = event.message.recipient.chat_id or user_id
     
-    if not pid:
+    payload_pid = event.callback.payload.replace("confirm_buy_", "")
+    
+    if not pid or pid != payload_pid:
         await event.answer()
-        await event.bot.send_message(chat_id=chat_id, text=texts.ORDER_NOT_FOUND_NOTIF)
+        await event.bot.send_message(chat_id=chat_id, text="Эта карточка устарела. Вы начали оформление другого товара или отменили действие.")
         return
         
     # Сразу очищаем контекст до любых await-запросов к БД.
@@ -155,18 +157,21 @@ async def process_confirm_buy(event: MessageCallback, context: MemoryContext):
     else:
         await event.bot.send_message(chat_id=chat_id, text=texts.ORDER_CREATE_ERROR)
 
-@router.message_callback(F.callback.payload == "cancel_buy")
+@router.message_callback(F.callback.payload.startswith("cancel_buy_"))
 async def process_cancel_buy(event: MessageCallback, context: MemoryContext):
-    # Очищаем контекст сразу
+    payload_pid = event.callback.payload.replace("cancel_buy_", "")
     data = await context.get_data()
-    if not data.get('buy_product_id'):
+    pid = data.get('buy_product_id')
+    
+    user_id = event.callback.user.user_id
+    chat_id = event.message.recipient.chat_id or user_id
+    
+    if not pid or pid != payload_pid:
         await event.answer()
-        await event.bot.send_message(chat_id=chat_id, text=texts.ACTION_ALREADY_CANCELLED)
+        await event.bot.send_message(chat_id=chat_id, text="Эта карточка устарела.")
         return
         
     await context.clear()
     
-    user_id = event.callback.user.user_id
-    chat_id = event.message.recipient.chat_id or user_id
-    await event.answer(notification=texts.ORDER_CANCELLED_NOTIF)
+    await event.answer()
     await event.bot.send_message(chat_id=chat_id, text=texts.ORDER_CANCELLED_MSG)

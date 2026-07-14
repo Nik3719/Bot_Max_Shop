@@ -148,6 +148,24 @@ async def cmd_myorders(event: MessageCreated, context: MemoryContext):
 @router.message_created(OrderState.WAIT_COMMENT)
 async def process_order_comment(event: MessageCreated, context: MemoryContext):
     text = event.message.body.text or ""
+    
+    if text in ["🛍 Лента товаров", "📋 Мои заявки"]:
+        await context.clear()
+        if text == "🛍 Лента товаров":
+            chat_id_to_send = event.message.recipient.chat_id or event.message.sender.user_id
+            await show_products_page(event.bot, chat_id_to_send, 1)
+        else:
+            await cmd_myorders(event, context)
+        return
+        
+    if text.startswith('/') and text != "/skip":
+        await event.message.answer("Пожалуйста, введите текстовый комментарий или нажмите /skip.")
+        return
+        
+    if len(text) > 500:
+        await event.message.answer("Слишком длинный комментарий (максимум 500 символов). Пожалуйста, сократите его.")
+        return
+        
     comment = text if text != "/skip" else ""
     
     data = await context.get_data()
@@ -175,8 +193,8 @@ async def process_order_comment(event: MessageCreated, context: MemoryContext):
         
         builder = InlineKeyboardBuilder()
         builder.row(
-            CallbackButton(text="✅ Подтвердить", payload="confirm_buy"),
-            CallbackButton(text="❌ Отменить", payload="cancel_buy")
+            CallbackButton(text="✅ Подтвердить", payload=f"confirm_buy_{pid}"),
+            CallbackButton(text="❌ Отменить", payload=f"cancel_buy_{pid}")
         )
         
         await event.message.answer(final_text, attachments=[builder.as_markup()])
